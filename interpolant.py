@@ -278,7 +278,7 @@ class MDMInterpolant(JointInterpolant):
 
     def to_actual_rate(self, xt: Tensor, prediction: Tensor, t: Tensor) -> Rate:
         """
-        Return the actual rate for the sampling
+        Return the actual rate (instead of logits) for the sampling
         """
         token_posterior = F.softmax(prediction, dim=-1)  # (B, L, V)
         unmask_rate = token_posterior * self.unmask_schedule.rate_scale_factor(t).view(
@@ -293,19 +293,20 @@ class MDMInterpolant(JointInterpolant):
     def sample_interpolant(self, t: Tensor, x1: Tensor) -> JointInterpolantResult:
         # sample the stopping time (B, L, 2)
         eps = 1e-6
+        # sample unmasking time T^i based on the schedule
         unmask_time = self.unmask_schedule.sample(
             (x1.shape[0], x1.shape[1]), device=x1.device
         )
-        unmask_time = unmask_time * (1 - eps) + eps
+        unmask_time = unmask_time * (1 - eps) + eps # for numerical stability: avoid t=0
 
         xt = torch.where(
-            t[:, None] < unmask_time,
+            t[:, None] < unmask_time, # mask places where t<T^i
             self.mask_token,  # for masking, change to mask token
             x1,
         )
         st = torch.arange(xt.shape[1], device=xt.device, dtype=torch.long).repeat(
             xt.shape[0], 1
-        )
+        ) # not important for fixed-length; identity mapping so all 1's.
 
         return JointInterpolantResult(
             xt=xt, st=st, _x1=x1, _pad_token=self.pad_token, _mask_token=self.mask_token

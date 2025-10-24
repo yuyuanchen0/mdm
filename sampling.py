@@ -65,9 +65,11 @@ def mdm_euler_sampling(
 
         # ——— unmask step (Euler) ———
         mask_pos = (xt == mask).nonzero(as_tuple=True)
-        unmask_rate[xt != mask] = 0
-        unmask_rate[*mask_pos, mask] = 0
+        unmask_rate[xt != mask] = 0 # these are already unmasked
+        unmask_rate[*mask_pos, mask] = 0 # what is this doing?
+        # set the diagonal (the “stay as MASK” entry) to the negative row sum:
         unmask_rate[*mask_pos, mask] = -unmask_rate[*mask_pos, :].sum(dim=1)
+        # multiply by dt to get a first-order transition probability:
         trans_prob = (unmask_rate * dt).clamp(0.0, 1.0)
 
         _xt = xt.clone()
@@ -82,6 +84,7 @@ def mdm_euler_sampling(
             trans_prob[*mask_pos, mask] = 0.0
             print(trans_prob[*mask_pos, mask])
 
+        # sample new tokens at the masked slots
         new_xt = _sample_tokens(trans_prob)
         new_xt = torch.where(xt != mask, xt, new_xt)
 
