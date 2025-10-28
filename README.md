@@ -1,5 +1,5 @@
 ### Dependency management
-This repository uses the uv package manager
+This is the repository uses the uv package manager
 To install uv pleaes refer to the official uv website and make sure to add the uv binary to $PATH.
 
 Installing dependency is as simple as,
